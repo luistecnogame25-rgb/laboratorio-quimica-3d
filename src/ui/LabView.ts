@@ -621,27 +621,70 @@ export class LabView {
       this.insertStructure(rec);
       const bond = rec.bonds.find(([x, y]) => (rec.atoms[x].z === za && rec.atoms[y].z === zb) || (rec.atoms[x].z === zb && rec.atoms[y].z === za));
       this.showBondInfo(za, zb, bond?.[2] ?? null, `Análisis ${A.symbol}–${B.symbol} · ${rec.name} (PubChem)`);
-    } else {
-      this.addPairForBond(za, zb);
-      this.showBondInfo(za, zb, null, `Análisis ${A.symbol} + ${B.symbol} · tócalos para enlazarlos`);
-    }
+    } else this.placeBondedPair(za, zb);
   }
 
-  /** Coloca dos átomos juntos y activa «Enlazar» (desde el analizador de la página de enlaces). */
-  addPairForBond(za: number, zb: number) {
+  /**
+   * Orden de enlace habitual entre dos átomos aislados (para mostrar el par ya enlazado):
+   * diatómicas iguales con su valencia típica (H–H, O=O, N≡N); entre C, N y O, el menor de sus
+   * valencias típicas (C=O, C≡N, N=O); en el resto, simple. Después se valida con checkBond.
+   */
+  private naturalOrder(za: number, zb: number): number {
+    const tv = (z: number) => ({ 1: 1, 6: 4, 7: 3, 8: 2 } as Record<number, number>)[z] ?? 1;
+    if ([6, 7, 8].includes(za) && [6, 7, 8].includes(zb)) return Math.min(3, tv(za), tv(zb));
+    return 1;
+  }
+
+  /**
+   * Coloca los dos átomos del análisis YA ENLAZADOS, con el orden habitual validado por las reglas
+   * de valencia (si un orden no es válido se prueba el siguiente más bajo). Si la pareja no admite
+   * un enlace localizado (dos metales, gas noble), se colocan sueltos y se explica por qué.
+   */
+  private placeBondedPair(za: number, zb: number) {
     this.cancelPlacement();
+    const A = element(za);
+    const B = element(zb);
     const scale = this.store.project.view.atomScale * this.settings.atomScale;
-    const t = this.sm.controls.target;
-    const ra = visualRadius(element(za), scale);
-    const rb = visualRadius(element(zb), scale);
-    const half = (ra + rb) * 1.6;
+    const t = this.sm.controls.target.clone();
+    const ra = visualRadius(A, scale);
+    const rb = visualRadius(B, scale);
+    const half = (ra + rb) * 0.95; // misma separación visual que usa «Enlazar» (no es una longitud calculada)
+    const existing = this.store.project.atoms;
+    if (existing.some((e) => Math.hypot(e.pos[0] - t.x, e.pos[2] - t.z) < half + 2.5)) t.x = Math.max(...existing.map((e) => e.pos[0])) + half + 3;
     const a: AtomInstance = { id: uid('at'), z: za, pos: [round(t.x - half), round(ra + 0.02), round(t.z)] };
     const b: AtomInstance = { id: uid('at'), z: zb, pos: [round(t.x + half), round(rb + 0.02), round(t.z)] };
-    this.store.mutate(`Añadir ${element(za).symbol} y ${element(zb).symbol}`, (p) => p.atoms.push(a, b));
-    this.setTool('bond');
+    let order = 0;
+    let reason = '';
+    for (let o = this.naturalOrder(za, zb); o >= 1; o--) {
+      const chk = checkBond(za, zb, a.id, b.id, o, []);
+      if (chk.ok) {
+        order = o;
+        break;
+      }
+      if (!reason) reason = chk.reason;
+    }
+    this.store.mutate(order ? `Enlazar ${A.symbol}${JOIN[order]}${B.symbol}` : `Añadir ${A.symbol} y ${B.symbol}`, (p) => {
+      p.atoms.push(a, b);
+      if (order) p.bonds.push({ a: a.id, b: b.id, order, manual: true });
+    });
     this.requestFrame();
-    toast('Elige simple, doble o triple y toca los dos átomos para enlazarlos', 'info');
+    if (!order) {
+      this.setTool('select');
+      toast(reason || 'Estos dos átomos no forman un enlace localizado.', 'warn');
+      this.showBondInfo(za, zb, null, `Análisis ${A.symbol} + ${B.symbol} · sin enlace localizado`);
+      return;
+    }
+    this.setTool('select');
+    this.select([]);
+    // ¿El par enlazado es una molécula documentada (O₂, N₂, HCl…)? Entonces se adopta su geometría real.
+    const hit = recognize([a, b], [{ a: a.id, b: b.id, order }]);
+    if (hit) {
+      this.applyStructure(hit.record, hit.map, 'Reconocer ' + hit.record.name);
+      toast(`${A.symbol}${JOIN[order]}${B.symbol}: coincide con ${hit.record.name} (PubChem CID ${hit.record.cid})`, 'ok');
+    } else toast(`Enlace ${A.symbol}${JOIN[order]}${B.symbol} creado (propuesta validada por valencia, no por una fuente)`, 'ok');
+    this.showBondInfo(za, zb, order, `Enlace ${A.symbol}${JOIN[order]}${B.symbol}${hit ? ` · ${hit.record.name}` : ''}`);
   }
+
 
   private setAnalysis(open: boolean) {
     this.analysisOpen = open;
