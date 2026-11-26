@@ -6,6 +6,7 @@
 import { DATA_SOURCE, FAMILIES, L_LETTER, estimatedNeutrons, kToC, stateLabel, subshellLabel, type ChemElement, type Measured } from '../chem/elements';
 import { hundBoxes, unpaired } from '../chem/orbitals';
 import { clear, h, icon } from './dom';
+import { swipeToClose } from './swipe';
 
 export type SheetTab = 'resumen' | 'propiedades' | 'configuracion' | 'clasificacion' | 'fuentes';
 
@@ -193,6 +194,13 @@ export function openElementSheet(e: ChemElement, a: SheetActions, tab: SheetTab 
   );
   document.body.append(panel);
   current = panel;
+  // En el teléfono, la ficha también se cierra deslizándola hacia abajo o hacia arriba.
+  swipeToClose(panel, {
+    onClose: () => {
+      panel.remove();
+      if (current === panel) current = null;
+    },
+  });
   show(tab);
   requestAnimationFrame(() => panel.classList.add('open'));
 }

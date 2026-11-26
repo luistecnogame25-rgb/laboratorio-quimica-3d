@@ -23,9 +23,12 @@ import { SceneManager } from '../render/SceneManager';
 import { qualityOf, type AppSettings } from '../settings';
 import { clear, h, icon, iconBtn, toast } from './dom';
 import { PeriodicTable } from './PeriodicTable';
+import { swipeToClose } from './swipe';
 
 type Tool = 'select' | 'bond' | 'distance' | 'angle';
 const JOIN = ['', '–', '=', '≡'];
+/** Pantalla estrecha (teléfono): los paneles flotantes se muestran de uno en uno. */
+const compact = () => window.innerWidth < 860;
 
 export interface LabCallbacks {
   save(): void;
@@ -65,6 +68,9 @@ export class LabView {
   private table: PeriodicTable | null = null;
   private analysis!: HTMLElement;
   private analysisOpen = false;
+  /** El usuario cerró el panel de propiedades (o lo tapó otro panel) hasta la próxima selección. */
+  private propsDismissed = false;
+  private atomActions!: HTMLElement;
   private placeBar!: HTMLElement;
   private toolBtns = new Map<Tool, HTMLButtonElement>();
   private undoBtn!: HTMLButtonElement;
@@ -93,6 +99,7 @@ export class LabView {
     this.barMenu = h('div', { class: 'bar-menu floating-glass hidden', role: 'menu' });
     this.analysis = h('section', { class: 'analysis floating-glass' });
     this.status = h('div', { class: 'lab-status' });
+    this.atomActions = h('div', { class: 'atom-actions hidden' });
     stage.append(
       this.overlay,
       this.picker,
@@ -103,6 +110,7 @@ export class LabView {
       this.barMenu,
       this.analysis,
       this.status,
+      this.atomActions,
       h('div', { class: 'cam-ctrl floating-glass' }, iconBtn('zoomIn', 'Acercar', () => this.sm.zoom(0.8)), iconBtn('zoomOut', 'Alejar', () => this.sm.zoom(1.25)), iconBtn('top', 'Vista superior', () => this.sm.setView('top', this.sm.controls.target.clone())), iconBtn('reset', 'Encuadrar todo', () => this.sm.frameContent())),
     );
     const c = this.sm.renderer.domElement;
@@ -112,6 +120,12 @@ export class LabView {
     c.addEventListener('contextmenu', (e) => (e.preventDefault(), this.cancelPlacement()));
     window.addEventListener('keydown', (e) => this.onKey(e));
     store.subscribe(() => this.sync());
+    // Paneles que se cierran deslizándolos con el dedo (hacia abajo o hacia arriba).
+    swipeToClose(this.props, { onClose: () => ((this.propsDismissed = true), this.renderProps()) });
+    swipeToClose(this.substances, { onClose: () => this.toggleSubstances(false) });
+    swipeToClose(this.picker, { onClose: () => this.togglePicker(false) });
+    swipeToClose(this.barMenu, { onClose: () => this.toggleBarMenu(false) });
+    swipeToClose(this.analysis, { dirs: ['down'], onClose: () => this.setAnalysis(false) });
     this.sm.onFrame((dt) => {
       this.stepAnimation(dt);
       this.updateOverlay();
@@ -371,6 +385,7 @@ export class LabView {
     this.substBtn.classList.toggle('active', open);
     if (open) {
       this.togglePicker(false);
+      this.exclusive('subst');
       this.renderSubstances();
     }
   }
@@ -523,9 +538,32 @@ export class LabView {
     return det;
   }
 
+  /** En el teléfono solo cabe un panel: al abrir uno se cierran los demás. */
+  private exclusive(keep: 'props' | 'analysis' | 'subst' | 'picker') {
+    if (!compact()) return;
+    if (keep !== 'picker' && !this.picker.classList.contains('hidden')) this.togglePicker(false);
+    if (keep !== 'subst' && !this.substances.classList.contains('hidden')) this.toggleSubstances(false);
+    if (keep !== 'analysis' && this.analysisOpen) {
+      this.analysisOpen = false;
+      this.renderAnalysis();
+    }
+    if (keep !== 'props' && !this.props.classList.contains('hidden')) {
+      this.propsDismissed = true;
+      this.props.classList.add('hidden');
+    }
+    if (!this.barMenu.classList.contains('hidden')) this.toggleBarMenu(false);
+  }
+
+  private setAnalysis(open: boolean) {
+    this.analysisOpen = open;
+    if (open) this.exclusive('analysis');
+    this.renderAnalysis();
+  }
+
   togglePicker(force?: boolean) {
     const open = force ?? this.picker.classList.contains('hidden');
     if (open && this.substances && !this.substances.classList.contains('hidden')) this.toggleSubstances(false);
+    if (open) this.exclusive('picker');
     this.picker.classList.toggle('hidden', !open);
     if (open && !this.table) {
       this.table = new PeriodicTable({ compact: true, onSelect: (e) => this.beginPlacement(e.z) });
@@ -688,7 +726,8 @@ export class LabView {
       const groupIds = a.group ? this.store.project.atoms.filter((k) => k.group === a.group).map((k) => k.id) : [atom];
       if (!this.down.shift) this.selection.clear();
       groupIds.forEach((id) => this.selection.add(id));
-      if (this.selection.size >= 2) this.analysisOpen = true;
+      if (this.selection.size >= 2 && !compact()) this.analysisOpen = true;
+      this.propsDismissed = false;
       this.syncSelectionVisuals();
       this.renderProps();
       this.renderAnalysis();
@@ -790,7 +829,7 @@ export class LabView {
         this.measurePick = [];
         const m: Measurement = { id: uid('m'), kind: this.tool, atoms: ids, value: 0, unit: this.tool === 'distance' ? 'Å' : '°' };
         m.value = Math.round(this.measureValue(m) * 1000) / 1000;
-        this.analysisOpen = true;
+        this.setAnalysis(true);
         this.store.mutate('Medir', (p) => p.measurements.push(m));
       }
       this.syncSelectionVisuals();
@@ -805,6 +844,7 @@ export class LabView {
 
   select(ids: string[]) {
     this.selection = new Set(ids);
+    this.propsDismissed = false;
     this.syncSelectionVisuals();
     this.renderProps();
     this.renderAnalysis();
@@ -815,8 +855,10 @@ export class LabView {
   deleteSelection() {
     if (!this.selection.size) return;
     const ids = new Set(this.selection);
+    const n = ids.size;
     this.store.mutate('Eliminar', (p) => (p.atoms = p.atoms.filter((a) => !ids.has(a.id))));
     this.select([]);
+    toast(`${n === 1 ? 'Átomo eliminado' : `${n} átomos eliminados`} · puedes recuperarlo con «Deshacer»`, 'ok');
   }
 
   duplicate() {
@@ -1068,9 +1110,11 @@ export class LabView {
     clear(p);
     const sel = this.store.project.atoms.filter((a) => this.selection.has(a.id));
     // Mientras se coloca un átomo o se enlaza, el panel no debe tapar la escena (sobre todo en el teléfono).
-    const hide = sel.length === 0 || !!this.placing || this.tool === 'bond';
+    const hide = sel.length === 0 || !!this.placing || this.tool === 'bond' || this.propsDismissed;
+    const wasHidden = p.classList.contains('hidden');
     p.classList.toggle('hidden', hide);
     if (hide) return;
+    if (wasHidden) this.exclusive('props');
     if (sel.length === 1) {
       const a = sel[0];
       const e = element(a.z);
@@ -1105,6 +1149,7 @@ export class LabView {
           { class: 'row gap' },
           h('button', { class: 'btn small', onclick: () => this.cb.openSheet(e) }, icon('info', 14), 'Ficha'),
           h('button', { class: 'btn small', onclick: () => this.cb.viewAtom(e) }, icon('atom', 14), 'Ver en 3D'),
+          h('button', { class: 'btn small danger', onclick: () => this.deleteSelection() }, icon('trash', 14), 'Eliminar'),
         ),
         h('p', { class: 'small muted' }, e.atomicRadius.value === null ? 'Sin radio en la fuente: tamaño visual por defecto.' : 'Tamaño visual: 0,22 × radio de la fuente + 0,06 Å (bolas y varillas).'),
         this.structurePanel(a.id),
@@ -1118,7 +1163,7 @@ export class LabView {
           { class: 'row gap' },
           h('button', { class: 'btn small', onclick: () => this.toggleGroup() }, icon('group', 14), 'Agrupar'),
           h('button', { class: 'btn small', onclick: () => this.rotateSelection() }, icon('rotate', 14), 'Girar'),
-          h('button', { class: 'btn small danger', onclick: () => this.deleteSelection() }, icon('trash', 14)),
+          h('button', { class: 'btn small danger', onclick: () => this.deleteSelection() }, icon('trash', 14), 'Eliminar'),
         ),
       );
     }
@@ -1157,7 +1202,7 @@ export class LabView {
     const atoms = this.selection.size ? exp.atoms.filter((a) => this.selection.has(a.id)) : exp.atoms;
     const head = h(
       'button',
-      { class: 'an-head', type: 'button', onclick: () => ((this.analysisOpen = !this.analysisOpen), this.renderAnalysis()) },
+      { class: 'an-head', type: 'button', onclick: () => this.setAnalysis(!this.analysisOpen) },
       icon('layers', 15),
       h('b', {}, 'Análisis'),
       h('span', { class: 'muted' }, atoms.length ? `Recuento ${subscript(hillFormula(atoms.map((a) => a.z)))} · ${atoms.length} átomo${atoms.length === 1 ? '' : 's'}${this.selection.size ? (atoms.length === 1 ? ' seleccionado' : ' seleccionados') : ''}` : 'Sin átomos'),
@@ -1249,6 +1294,48 @@ export class LabView {
       tags.push(t);
     }
     this.overlay.replaceChildren(...tags);
+    this.placeAtomActions();
+  }
+
+  /** Botón flotante junto al átomo (o grupo) seleccionado: eliminar sin buscar en menús. */
+  private atomActionsKey = '';
+  private placeAtomActions() {
+    const box = this.atomActions;
+    const ids = [...this.selection];
+    const show = ids.length > 0 && !this.placing && this.tool === 'select' && !this.drag?.moved;
+    if (!show) {
+      if (!box.classList.contains('hidden')) box.classList.add('hidden');
+      this.atomActionsKey = '';
+      return;
+    }
+    const atoms = ids.map((id) => this.atom(id)).filter((a): a is AtomInstance => !!a);
+    if (!atoms.length) return;
+    const key = ids.join(',');
+    if (key !== this.atomActionsKey) {
+      this.atomActionsKey = key;
+      clear(box);
+      box.append(h('button', { class: 'aa-btn', type: 'button', onclick: () => this.deleteSelection() }, icon('trash', 16), h('span', {}, atoms.length === 1 ? 'Eliminar' : `Eliminar ${atoms.length}`)));
+    }
+    // Centro y radio en pantalla de lo seleccionado
+    const c = new THREE.Vector3();
+    for (const a of atoms) c.add(new THREE.Vector3(...a.pos));
+    c.multiplyScalar(1 / atoms.length);
+    const scale = this.store.project.view.atomScale * this.settings.atomScale;
+    let r = 0;
+    for (const a of atoms) r = Math.max(r, new THREE.Vector3(...a.pos).distanceTo(c) + visualRadius(element(a.z), scale));
+    const s = this.sm.toScreen(c);
+    if (!s.visible) return void box.classList.add('hidden');
+    const side = new THREE.Vector3(1, 0, 0).applyQuaternion(this.sm.camera.quaternion).multiplyScalar(r);
+    const s2 = this.sm.toScreen(c.clone().add(side));
+    const rpx = Math.hypot(s2.x - s.x, s2.y - s.y);
+    box.classList.remove('hidden');
+    const stage = box.parentElement!.getBoundingClientRect();
+    const w = box.offsetWidth;
+    const hh = box.offsetHeight;
+    let top = s.y - rpx * 1.2 - hh - 6;
+    if (top < 8) top = s.y + rpx * 1.2 + 6;
+    const left = Math.min(stage.width - w - 8, Math.max(8, s.x - w / 2));
+    box.style.transform = `translate(${Math.round(left)}px, ${Math.round(Math.min(stage.height - hh - 8, top))}px)`;
   }
 
   /* ============================ teclado ============================ */

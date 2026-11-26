@@ -67,7 +67,7 @@ sup, sub { font-size: 0.7em; }
 }
 
 /* ---------------- Armazón ---------------- */
-.app { display: grid; grid-template-columns: var(--nav-w) 1fr; height: 100vh; height: 100dvh; transition: grid-template-columns 0.25s var(--ease); }
+.app { display: grid; grid-template-columns: var(--nav-w) 1fr; grid-template-rows: minmax(0, 1fr); height: 100vh; height: 100dvh; transition: grid-template-columns 0.25s var(--ease); }
 .app.nav-collapsed { --nav-w: 68px; }
 .nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; padding-top: calc(14px + var(--sat)); padding-bottom: calc(14px + var(--sab)); padding-left: calc(10px + var(--sal)); background: var(--bg-2); border-right: 1px solid var(--line); overflow: hidden auto; z-index: 40; }
 .brand { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 6px; margin-bottom: 10px; }
@@ -80,7 +80,7 @@ sup, sub { font-size: 0.7em; }
 .nav .spacer { flex: 1; }
 .nav-collapse { color: var(--muted); }
 .nav-collapsed .nav a span, .nav-collapsed .brand-name, .nav-collapsed .nav-collapse span { display: none; }
-.shell-body { display: flex; flex-direction: column; min-width: 0; height: 100%; padding: var(--sat) var(--sar) var(--sab) 0; background: var(--bg-2); }
+.shell-body { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; padding: var(--sat) var(--sar) var(--sab) 0; background: var(--bg-2); }
 .main { background: var(--bg); }
 .main { position: relative; flex: 1; min-height: 0; overflow-y: auto; }
 .main.full { overflow: hidden; }
@@ -441,3 +441,18 @@ ul.inter { margin: 4px 0; padding-left: 18px; color: var(--text-2); line-height:
 }
 /* La cabecera del panel «Sustancias» (con su botón de cerrar) queda fija al desplazar */
 .lab-subst .picker-head { position: sticky; top: -12px; z-index: 2; margin: -12px -12px 8px; padding: 12px 12px 8px; background: var(--bg-2); }
+
+/* ---------------- Botón flotante junto al átomo seleccionado ---------------- */
+.atom-actions { position: absolute; left: 0; top: 0; z-index: 5; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line-2); backdrop-filter: blur(20px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); will-change: transform; }
+.aa-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(255, 69, 58, 0.16); color: #ff6961; font: 600 13.5px var(--font); cursor: pointer; }
+.aa-btn:active { background: rgba(255, 69, 58, 0.3); }
+
+/* ---------------- Paneles que se cierran deslizándolos (teléfono) ---------------- */
+@media (max-width: 859px) {
+  .swipeable { touch-action: pan-x pan-y; }
+  .lab-props.swipeable::before, .lab-subst.swipeable::before, .lab-picker.swipeable::before, .bar-menu.swipeable::before, .analysis.open::before, .sheet.swipeable::before {
+    content: ''; display: block; flex: none; width: 42px; height: 5px; margin: 2px auto 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.28);
+  }
+  .analysis.open::before { margin-top: 8px; margin-bottom: 0; }
+  .sheet.swipeable::before { margin-top: 8px; }
+}
