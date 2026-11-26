@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 947,
+        "MolecularFormula": "N2",
+        "MolecularWeight": "28.014",
+        "ConnectivitySMILES": "N#N",
+        "IUPACName": "molecular nitrogen",
+        "Charge": 0
+      }
+    ]
+  }
+}

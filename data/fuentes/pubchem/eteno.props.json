@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 6325,
+        "MolecularFormula": "C2H4",
+        "MolecularWeight": "28.05",
+        "ConnectivitySMILES": "C=C",
+        "IUPACName": "ethene",
+        "Charge": 0
+      }
+    ]
+  }
+}

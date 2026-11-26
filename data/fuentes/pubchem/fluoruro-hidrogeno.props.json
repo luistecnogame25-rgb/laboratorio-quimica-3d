@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 14917,
+        "MolecularFormula": "FH",
+        "MolecularWeight": "20.0064",
+        "ConnectivitySMILES": "F",
+        "IUPACName": "fluorane",
+        "Charge": 0
+      }
+    ]
+  }
+}

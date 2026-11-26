@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 280,
+        "MolecularFormula": "CO2",
+        "MolecularWeight": "44.009",
+        "ConnectivitySMILES": "C(=O)=O",
+        "IUPACName": "carbon dioxide",
+        "Charge": 0
+      }
+    ]
+  }
+}

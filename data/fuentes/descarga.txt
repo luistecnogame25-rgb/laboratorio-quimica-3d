@@ -1,0 +1,26 @@
+Descargado: 2026-11-23T08:22:47.993Z
+agua: propiedades 200, 3D 200
+dioxido-carbono: propiedades 200, 3D 200
+metano: propiedades 200, 3D 200
+amoniaco: propiedades 200, 3D 200
+oxigeno: propiedades 200, 3D 200
+nitrogeno: propiedades 200, 3D 200
+hidrogeno: propiedades 200, 3D 404
+cloruro-hidrogeno: propiedades 200, 3D 200
+fluoruro-hidrogeno: propiedades 200, 3D 200
+glucosa: propiedades 200, 3D 200
+etanol: propiedades 200, 3D 200
+benceno: propiedades 200, 3D 200
+acido-sulfurico: propiedades 200, 3D 200
+eteno: propiedades 200, 3D 200
+etino: propiedades 200, 3D 200
+metanal: propiedades 200, 3D 200
+monoxido-carbono: propiedades 200, 3D 200
+acido-acetico: propiedades 200, 3D 200
+ion-amonio: propiedades 200, 3D 200
+cisplatino: propiedades 200, 3D 404
+cloruro-sodio (COD 1000041): ya descargado
+oxido-magnesio (COD 1000053): 200
+cobre (COD 5000216): 200
+hierro-alfa (COD 9000657): 200
+calcita (COD 1547350): 200

@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 281,
+        "MolecularFormula": "CO",
+        "MolecularWeight": "28.010",
+        "ConnectivitySMILES": "[C-]#[O+]",
+        "IUPACName": "carbon monoxide",
+        "Charge": 0
+      }
+    ]
+  }
+}

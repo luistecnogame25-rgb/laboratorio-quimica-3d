@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 223,
+        "MolecularFormula": "H4N+",
+        "MolecularWeight": "18.039",
+        "ConnectivitySMILES": "[NH4+]",
+        "IUPACName": "azanium",
+        "Charge": 1
+      }
+    ]
+  }
+}

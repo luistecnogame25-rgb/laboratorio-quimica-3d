@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 712,
+        "MolecularFormula": "CH2O",
+        "MolecularWeight": "30.026",
+        "ConnectivitySMILES": "C=O",
+        "IUPACName": "formaldehyde",
+        "Charge": 0
+      }
+    ]
+  }
+}

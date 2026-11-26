@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 977,
+        "MolecularFormula": "O2",
+        "MolecularWeight": "31.999",
+        "ConnectivitySMILES": "O=O",
+        "IUPACName": "molecular oxygen",
+        "Charge": 0
+      }
+    ]
+  }
+}

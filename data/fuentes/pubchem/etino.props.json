@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 6326,
+        "MolecularFormula": "C2H2",
+        "MolecularWeight": "26.04",
+        "ConnectivitySMILES": "C#C",
+        "IUPACName": "acetylene",
+        "Charge": 0
+      }
+    ]
+  }
+}

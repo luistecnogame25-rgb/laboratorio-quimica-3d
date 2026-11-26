@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 313,
+        "MolecularFormula": "ClH",
+        "MolecularWeight": "36.46",
+        "ConnectivitySMILES": "Cl",
+        "IUPACName": "chlorane",
+        "Charge": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 297,
+        "MolecularFormula": "CH4",
+        "MolecularWeight": "16.043",
+        "ConnectivitySMILES": "C",
+        "IUPACName": "methane",
+        "Charge": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "PropertyTable": {
+    "Properties": [
+      {
+        "CID": 783,
+        "MolecularFormula": "H2",
+        "MolecularWeight": "2.016",
+        "ConnectivitySMILES": "[HH]",
+        "IUPACName": "molecular hydrogen",
+        "Charge": 0
+      }
+    ]
+  }
+}
