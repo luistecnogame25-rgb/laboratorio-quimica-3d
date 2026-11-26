@@ -11,6 +11,7 @@ import { buildCrystal, buildMolecule, disposeStructure, type BuiltStructure, typ
 import { SceneManager } from '../render/SceneManager';
 import { qualityOf, type AppSettings } from '../settings';
 import { clear, h, icon, iconBtn } from './dom';
+import { openBondSheet } from './BondAnalysisView';
 
 export interface StructureViewerActions {
   back(): void;
@@ -169,8 +170,8 @@ export class StructureViewer {
         h(
           'table',
           { class: 'an-table' },
-          h('tr', {}, h('th', {}, 'Enlace'), h('th', {}, 'Orden'), h('th', {}, 'd (Å)'), h('th', {}, 'Δχ')),
-          ...bi.slice(0, 40).map((b) => h('tr', {}, h('td', {}, `${sym(b.a)}${b.a + 1}–${sym(b.b)}${b.b + 1}`), h('td', {}, ['', 'simple', 'doble', 'triple'][b.order] ?? String(b.order)), h('td', {}, Number.isFinite(b.length) ? b.length.toFixed(3) : '—'), h('td', {}, b.dChi === null ? '—' : b.dChi.toFixed(2)))),
+          h('tr', {}, h('th', {}, 'Enlace'), h('th', {}, 'Orden'), h('th', {}, 'd (Å)'), h('th', {}, 'Δχ'), h('th', {}, '')),
+          ...bi.slice(0, 40).map((b) => h('tr', {}, h('td', {}, `${sym(b.a)}${b.a + 1}–${sym(b.b)}${b.b + 1}`), h('td', {}, ['', 'simple', 'doble', 'triple'][b.order] ?? String(b.order)), h('td', {}, Number.isFinite(b.length) ? b.length.toFixed(3) : '—'), h('td', {}, b.dChi === null ? '—' : b.dChi.toFixed(2)), h('td', {}, h('button', { class: 'btn small ghost', type: 'button', 'aria-label': 'Ver análisis del enlace', onclick: () => openBondSheet(r.atoms[b.a].z, r.atoms[b.b].z, b.order) }, 'Análisis')))),
         ),
         h('p', { class: 'small muted' }, 'Longitudes medidas sobre la geometría de la fuente. Δχ orienta sobre la polaridad del enlace, pero no determina por sí sola su tipo.'),
         r.id === 'benceno' ? h('div', { class: 'note' }, icon('info', 15), h('span', {}, 'PubChem describe el benceno con enlaces simples y dobles alternos (estructura de Kekulé). Las seis distancias C–C de su geometría son iguales: los electrones π están deslocalizados en el anillo (sistema aromático).')) : '',

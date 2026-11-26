@@ -13,6 +13,10 @@ import { bondInfo, centralGeometries, displayFormula, hasGeometry, polarityEstim
 
 export interface BondTypeDescription {
   label: string; // "O–H", "O=C", "N≡N" (más electronegativo primero)
+  /** Números atómicos y orden de enlace, para abrir el análisis del enlace. */
+  za: number;
+  zb: number;
+  orderN: number;
   count: number;
   bondType: string; // covalente, covalente coordinado…
   order: string; // simple / doble / triple / deslocalizado
@@ -56,6 +60,9 @@ export function describeStructure(rec: StructureRecord): SubstanceDescription {
       const ey = element(rec.atoms[y].z).electronegativity.value;
       const polar = b.dChi !== null && b.dChi >= 0.4;
       g = {
+        za: rec.atoms[x].z,
+        zb: rec.atoms[y].z,
+        orderN: b.order,
         label: `${sym(x)}${isAromaticCC ? '⋯' : JOIN[b.order] ?? '–'}${sym(y)}`,
         count: 0,
         bondType: 'Covalente',

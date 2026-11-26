@@ -456,3 +456,59 @@ ul.inter { margin: 4px 0; padding-left: 18px; color: var(--text-2); line-height:
   .analysis.open::before { margin-top: 8px; margin-bottom: 0; }
   .sheet.swipeable::before { margin-top: 8px; }
 }
+
+/* ---------------- Análisis del enlace ---------------- */
+.bond-analysis { display: flex; flex-direction: column; gap: 10px; }
+.ba-head { display: flex; align-items: center; gap: 12px; }
+.ba-head .grow { display: flex; flex-direction: column; min-width: 0; }
+.ba-head b { font-size: 18px; }
+.ba-pair { display: flex; gap: 4px; }
+.ba-pair .sym { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--fill); border-bottom: 3px solid var(--fam); font-weight: 700; font-size: 15px; }
+.ba-type { flex: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.t-ionic { background: rgba(255, 140, 60, 0.16); color: #ffa45c; }
+.t-cov { background: rgba(48, 209, 88, 0.15); color: #5fdc85; }
+.t-metal { background: rgba(140, 120, 255, 0.18); color: #a99bff; }
+.t-error { background: rgba(255, 69, 58, 0.16); color: #ff6961; }
+.ba-func { color: var(--text-2); }
+.ba-sec { border-top: 1px solid var(--line); padding-top: 8px; }
+.ba-sec > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 14px; min-height: 32px; list-style: none; }
+.ba-sec > summary::-webkit-details-marker { display: none; }
+.ba-sec > summary::after { content: '›'; color: var(--muted); font-size: 18px; transition: transform 0.2s; }
+.ba-sec[open] > summary::after { transform: rotate(90deg); }
+.ba-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
+.ba-body p { margin: 0; }
+.ba-formulas { display: flex; flex-direction: column; gap: 6px; }
+.ba-formula { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--fill); font-size: 13px; }
+.ba-formula b { font: 600 15px var(--mono); }
+.ba-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.ba-el { padding: 10px 12px; border-radius: 12px; background: var(--fill); display: flex; flex-direction: column; gap: 6px; }
+.ba-foot { margin-top: 2px; }
+.ba-open { align-self: flex-start; margin-top: 4px; }
+.bond-analysis.error p { margin: 0; }
+.lab-bondinfo { width: 380px; }
+.lab-bondinfo .picker-head { position: sticky; top: -16px; z-index: 2; margin: -16px -16px 0; padding: 12px 16px 8px; background: var(--bg-2); border-radius: inherit; }
+@media (max-width: 760px) { .lab-bondinfo { width: auto; max-height: 46vh; } }
+.bond-sheet header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+.bond-sheet header h2 { font-size: 20px; }
+
+/* Analizador (página Tipos de enlaces) */
+.analyzer .an-form { display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 6px 0 12px; }
+.an-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; }
+.an-form input { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--fill); color: var(--text); font: 15px var(--font); }
+.an-form input:focus { outline: 2px solid #0a84ff; outline-offset: 0; }
+.an-form input.bad { border-color: #ff453a; }
+.an-form .err { color: #ff6961; font-weight: 400; }
+.analyzer .chips button.chip { cursor: pointer; border: 0; font: inherit; }
+.an-result { margin-top: 16px; padding: 16px; border-radius: var(--r); background: var(--bg-2); border: 1px solid var(--line); max-width: 760px; }
+.el-sugg { display: flex; flex-wrap: wrap; gap: 6px; }
+.el-sugg .chip { font-weight: 400; }
+.el-sugg .chip b { color: var(--text); }
+
+/* Paneles del laboratorio en el teléfono: opacos (la escena 3D no se transparenta a través del texto)
+   y el análisis del enlace por encima de la barra «Enlazar». */
+@media (max-width: 859px) {
+  .stage .lab-props, .stage .lab-subst, .stage .lab-picker, .stage .analysis, .stage .bar-menu { background: #18191d; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .lab-bondinfo .picker-head { background: #18191d; }
+  .lab-bondinfo { max-height: 48%; }
+  .stage.bonding .lab-bondinfo { bottom: 196px; max-height: 44%; }
+}

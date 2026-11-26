@@ -4,7 +4,7 @@
  * Three.js montados mediante refs: React no re-renderiza la escena 3D.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DATA_SOURCE, element, ELEMENTS, FAMILIES, type ChemElement } from '../chem/elements';
+import { DATA_SOURCE, element, ELEMENTS, FAMILIES, searchElements, type ChemElement } from '../chem/elements';
 import { uid } from '../core/format';
 import { cloneExperiment, createExperiment } from '../core/project';
 import { ProjectStore } from '../core/store';
@@ -21,6 +21,8 @@ import { CalculatorPage, type CalcTool, type CalcLinks } from './CalculatorPage'
 import type { StructureRecord } from '../chem/structures';
 import { displayFormula, KIND_LABEL, searchStructures, type StructureKind } from '../chem/structures';
 import { subscript } from '../chem/formula';
+import { analyzeBond, findElement } from '../chem/bondAnalysis';
+import { bondAnalysisCard } from './BondAnalysisView';
 
 export function Ico({ name, size = 18 }: { name: string; size?: number }) {
   return (
@@ -457,6 +459,121 @@ function ExampleLinks({ items }: { items: [string, string][] }) {
   );
 }
 
+/** Monta un elemento DOM en el flujo normal de la página (a diferencia de Host, que ocupa toda la vista). */
+function InlineHost({ el }: { el: HTMLElement }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.append(el);
+    return () => el.remove();
+  }, [el]);
+  return <div ref={ref} />;
+}
+
+const ANALYZER_EXAMPLES: [string, string][] = [
+  ['Na', 'Cl'],
+  ['H', 'O'],
+  ['C', 'O'],
+  ['Ga', 'As'],
+  ['Si', 'P'],
+  ['Si', 'B'],
+  ['Zn', 'O'],
+  ['Cu', 'Zn'],
+  ['Fe', 'C'],
+  ['N', 'N'],
+];
+
+/** Campo de elemento con sugerencias propias (el «datalist» nativo interfiere con el teclado de Android). */
+function ElementField({ label, value, placeholder, error, onChange, onPick }: { label: string; value: string; placeholder: string; error: string | null; onChange: (v: string) => void; onPick: (e: ChemElement) => void }) {
+  const [focus, setFocus] = useState(false);
+  const exact = findElement(value, ELEMENTS);
+  const sugg = value.trim() && focus && !(exact && (exact.name.toLowerCase() === value.trim().toLowerCase() || exact.symbol === value.trim())) ? searchElements(value).slice(0, 6) : [];
+  return (
+    <label>
+      <span>{label}</span>
+      <input value={value} placeholder={placeholder} autoComplete="off" autoCapitalize="words" onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 200)} onChange={(ev) => onChange(ev.target.value)} className={error ? 'bad' : ''} />
+      {sugg.length > 0 && (
+        <span className="el-sugg">
+          {sugg.map((e) => (
+            <button key={e.z} type="button" className="chip" onPointerDown={(ev) => ev.preventDefault()} onClick={() => onPick(e)}>
+              <b>{e.symbol}</b> {e.name} · {e.z}
+            </button>
+          ))}
+        </span>
+      )}
+      {error && <small className="err">{error}</small>}
+    </label>
+  );
+}
+
+/** Analizador de enlaces: dos elementos por nombre, símbolo o número → tipo de enlace y clasificaciones. */
+function BondAnalyzer() {
+  const [q1, setQ1] = useState('');
+  const [q2, setQ2] = useState('');
+  const [errs, setErrs] = useState<[string | null, string | null]>([null, null]);
+  const [pair, setPair] = useState<[number, number] | null>(null);
+  const run = (a = q1, b = q2) => {
+    const e1 = findElement(a, ELEMENTS);
+    const e2 = findElement(b, ELEMENTS);
+    setErrs([e1 ? null : 'Escribe un nombre, símbolo o número válido (p. ej. Na o Sodio)', e2 ? null : 'Escribe un nombre, símbolo o número válido (p. ej. Cl o Cloro)']);
+    setPair(e1 && e2 ? [e1.z, e2.z] : null);
+  };
+  const card = useMemo(() => {
+    if (!pair) return null;
+    const [a, b] = pair;
+    const r = analyzeBond(a, b);
+    const toLab = document.createElement('button');
+    toLab.className = 'btn small primary';
+    toLab.textContent = 'Llevar al laboratorio para enlazarlos';
+    toLab.onclick = () => {
+      go('#/laboratorio');
+      setTimeout(() => getLab().addPairForBond(a, b), 80);
+    };
+    return bondAnalysisCard(r, { actions: r.ok ? [toLab] : [] });
+  }, [pair]);
+  return (
+    <section className="bond-sec analyzer">
+      <div className="row gap">
+        <h2>Analizador de enlaces</h2>
+        <span className="badge">Dos elementos</span>
+      </div>
+      <p>
+        Escribe el nombre (con o sin acentos), el símbolo o el número atómico de dos elementos. Obtendrás el tipo de enlace, su justificación y la
+        clasificación como semiconductor, la función química, la fórmula, el tipo de sólido, el octeto y las fuerzas intermoleculares.
+      </p>
+      <form
+        className="an-form"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          run();
+        }}
+      >
+        <ElementField label="1. Primer elemento" value={q1} placeholder="Ej. Na, Si, Ga, C…" error={errs[0]} onChange={(v) => (setQ1(v), setErrs([null, errs[1]]))} onPick={(e) => (setQ1(e.name), setErrs([null, errs[1]]))} />
+        <ElementField label="2. Segundo elemento" value={q2} placeholder="Ej. Cl, As, P, O…" error={errs[1]} onChange={(v) => (setQ2(v), setErrs([errs[0], null]))} onPick={(e) => (setQ2(e.name), setErrs([errs[0], null]))} />
+        <div className="row gap">
+          <button className="btn primary" type="submit">
+            Analizar enlace
+          </button>
+          <button className="btn" type="button" onClick={() => (setQ1(''), setQ2(''), setErrs([null, null]), setPair(null))}>
+            Limpiar
+          </button>
+        </div>
+      </form>
+      <div className="chips">
+        {ANALYZER_EXAMPLES.map(([a, b]) => (
+          <button key={a + b} className="chip" type="button" onClick={() => (setQ1(a), setQ2(b), run(a, b))}>
+            {a} + {b}
+          </button>
+        ))}
+      </div>
+      {card && (
+        <div className="an-result">
+          <InlineHost el={card} />
+        </div>
+      )}
+    </section>
+  );
+}
+
 function BondsPage() {
   const sections: { title: string; scope: string; text: string; examples: [string, string][]; note?: string }[] = [
     { title: 'Enlace iónico', scope: 'Intramolecular · red', text: 'Un átomo cede electrones y otro los acepta: se forman cationes y aniones que se atraen electrostáticamente. En estado sólido forman redes cristalinas, no moléculas aisladas; la proporción de iones (p. ej. 1:1 en NaCl) mantiene la neutralidad eléctrica.', examples: [['cloruro-sodio', 'NaCl (red)'], ['oxido-magnesio', 'MgO (red)'], ['calcita', 'CaCO₃ (calcita)']] },
@@ -473,7 +590,8 @@ function BondsPage() {
     ['Ion-dipolo', 'Entre un ion y una molécula polar; explica la disolución de sales en agua.'],
   ];
   return (
-    <Page title="Tipos de enlaces" subtitle="Cada ejemplo abre una estructura documentada en 3D.">
+    <Page title="Tipos de enlaces" subtitle="Analiza dos elementos o abre ejemplos documentados en 3D.">
+      <BondAnalyzer />
       {sections.map((s) => (
         <section key={s.title} className="bond-sec">
           <div className="row gap">

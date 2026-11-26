@@ -24,6 +24,8 @@ import { qualityOf, type AppSettings } from '../settings';
 import { clear, h, icon, iconBtn, toast } from './dom';
 import { PeriodicTable } from './PeriodicTable';
 import { swipeToClose } from './swipe';
+import { analyzeBond } from '../chem/bondAnalysis';
+import { bondAnalysisCard } from './BondAnalysisView';
 
 type Tool = 'select' | 'bond' | 'distance' | 'angle';
 const JOIN = ['', '–', '=', '≡'];
@@ -71,6 +73,8 @@ export class LabView {
   /** El usuario cerró el panel de propiedades (o lo tapó otro panel) hasta la próxima selección. */
   private propsDismissed = false;
   private atomActions!: HTMLElement;
+  /** Panel «Análisis del enlace» (mismo sitio que el panel del átomo). */
+  private bondInfo!: HTMLElement;
   private placeBar!: HTMLElement;
   private toolBtns = new Map<Tool, HTMLButtonElement>();
   private undoBtn!: HTMLButtonElement;
@@ -100,7 +104,9 @@ export class LabView {
     this.analysis = h('section', { class: 'analysis floating-glass' });
     this.status = h('div', { class: 'lab-status' });
     this.atomActions = h('div', { class: 'atom-actions hidden' });
+    this.bondInfo = h('aside', { class: 'lab-props lab-bondinfo floating-glass hidden', 'aria-label': 'Análisis del enlace' });
     stage.append(
+      this.bondInfo,
       this.overlay,
       this.picker,
       this.substances,
@@ -126,6 +132,7 @@ export class LabView {
     swipeToClose(this.picker, { onClose: () => this.togglePicker(false) });
     swipeToClose(this.barMenu, { onClose: () => this.toggleBarMenu(false) });
     swipeToClose(this.analysis, { dirs: ['down'], onClose: () => this.setAnalysis(false) });
+    swipeToClose(this.bondInfo, { onClose: () => this.hideBondInfo() });
     this.sm.onFrame((dt) => {
       this.stepAnimation(dt);
       this.updateOverlay();
@@ -282,6 +289,7 @@ export class LabView {
     clear(this.bondBar);
     const show = this.tool === 'bond' && !this.placing;
     this.bondBar.classList.toggle('hidden', !show);
+    this.bondBar.parentElement?.classList.toggle('bonding', show);
     if (!show) return;
     const orders: [number, string][] = [
       [1, 'Simple'],
@@ -356,6 +364,7 @@ export class LabView {
       toast(`¡Has construido ${hit.record.name}! Coincide con PubChem (CID ${hit.record.cid}): se adopta su geometría real`, 'ok');
       this.applyStructure(hit.record, hit.map, 'Reconocer ' + hit.record.name);
     } else toast(`Enlace ${element(A.z).symbol}${JOIN[this.bondOrder]}${element(B.z).symbol}: ${chk.kind}`, 'ok');
+    this.showBondInfo(A.z, B.z, this.bondOrder, hit ? `Enlace creado · ${hit.record.name}` : 'Enlace que acabas de crear');
   }
 
   /** Grupos de átomos unidos por enlaces manuales (2 o más átomos). */
@@ -453,6 +462,7 @@ export class LabView {
           b.length !== null ? h('span', { class: 'term' }, `${b.length.toFixed(3)} Å`) : '',
         ),
         b.note ? h('p', { class: 'small muted' }, b.note) : '',
+        h('button', { class: 'btn small ghost ba-open', type: 'button', onclick: () => this.showBondInfo(b.za, b.zb, b.orderN, `Enlace ${b.label} · ${d.name}`) }, icon('bond', 14), 'Ver análisis'),
       ),
     );
     det.append(
@@ -492,13 +502,13 @@ export class LabView {
     const bonds = this.store.project.bonds.filter((b) => b.manual && ids.includes(b.a));
     const formula = hillFormula(atoms.map((a) => a.z));
     const rep = valenceReport(atoms, bonds);
-    const groups = new Map<string, { label: string; kind: string; count: number }>();
+    const groups = new Map<string, { label: string; kind: string; count: number; za: number; zb: number; order: number }>();
     for (const b of bonds) {
       const A = element(this.atom(b.a)!.z);
       const B = element(this.atom(b.b)!.z);
       const [x, y] = (A.electronegativity.value ?? 0) >= (B.electronegativity.value ?? 0) ? [A, B] : [B, A];
       const label = `${x.symbol}${JOIN[b.order]}${y.symbol}`;
-      const g = groups.get(label) ?? { label, kind: bondKind(A.z, B.z), count: 0 };
+      const g = groups.get(label) ?? { label, kind: bondKind(A.z, B.z), count: 0, za: x.z, zb: y.z, order: b.order };
       g.count++;
       groups.set(label, g);
     }
@@ -511,7 +521,15 @@ export class LabView {
         'div',
         { class: 'subst-body' },
         h('h4', {}, 'Enlaces'),
-        ...[...groups.values()].map((g) => h('div', { class: 'bond-row' }, h('div', { class: 'bond-label' }, h('b', {}, g.label), h('span', { class: 'muted' }, ` ×${g.count}`)), h('div', { class: 'bond-terms' }, h('span', { class: 'term' }, g.kind)))),
+        ...[...groups.values()].map((g) =>
+          h(
+            'div',
+            { class: 'bond-row' },
+            h('div', { class: 'bond-label' }, h('b', {}, g.label), h('span', { class: 'muted' }, ` ×${g.count}`)),
+            h('div', { class: 'bond-terms' }, h('span', { class: 'term' }, g.kind)),
+            h('button', { class: 'btn small ghost ba-open', type: 'button', onclick: () => this.showBondInfo(g.za, g.zb, g.order, `Enlace ${g.label} · construida por ti`) }, icon('bond', 14), 'Ver análisis'),
+          ),
+        ),
         h('h4', {}, 'Valencias'),
         h(
           'p',
@@ -539,7 +557,13 @@ export class LabView {
   }
 
   /** En el teléfono solo cabe un panel: al abrir uno se cierran los demás. */
-  private exclusive(keep: 'props' | 'analysis' | 'subst' | 'picker') {
+  private exclusive(keep: 'props' | 'analysis' | 'subst' | 'picker' | 'bond') {
+    // El análisis del enlace ocupa el sitio del panel del átomo también en pantallas grandes.
+    if (keep !== 'bond') this.hideBondInfo();
+    else if (!this.props.classList.contains('hidden')) {
+      this.propsDismissed = true;
+      this.props.classList.add('hidden');
+    }
     if (!compact()) return;
     if (keep !== 'picker' && !this.picker.classList.contains('hidden')) this.togglePicker(false);
     if (keep !== 'subst' && !this.substances.classList.contains('hidden')) this.toggleSubstances(false);
@@ -552,6 +576,40 @@ export class LabView {
       this.props.classList.add('hidden');
     }
     if (!this.barMenu.classList.contains('hidden')) this.toggleBarMenu(false);
+  }
+
+  /** Muestra el «Análisis del enlace» entre dos elementos (orden opcional) en el panel del laboratorio. */
+  showBondInfo(za: number, zb: number, order: number | null, kicker = 'Análisis del enlace') {
+    clear(this.bondInfo);
+    this.bondInfo.append(
+      h('div', { class: 'picker-head' }, h('b', {}, kicker), iconBtn('close', 'Cerrar', () => this.hideBondInfo())),
+      bondAnalysisCard(analyzeBond(za, zb, order)),
+    );
+    this.bondInfo.scrollTop = 0;
+    this.bondInfo.classList.remove('hidden');
+    this.exclusive('bond');
+  }
+
+  private hideBondInfo() {
+    if (this.bondInfo.classList.contains('hidden')) return;
+    this.bondInfo.classList.add('hidden');
+    clear(this.bondInfo);
+  }
+
+  /** Coloca dos átomos juntos y activa «Enlazar» (desde el analizador de la página de enlaces). */
+  addPairForBond(za: number, zb: number) {
+    this.cancelPlacement();
+    const scale = this.store.project.view.atomScale * this.settings.atomScale;
+    const t = this.sm.controls.target;
+    const ra = visualRadius(element(za), scale);
+    const rb = visualRadius(element(zb), scale);
+    const half = (ra + rb) * 1.6;
+    const a: AtomInstance = { id: uid('at'), z: za, pos: [round(t.x - half), round(ra + 0.02), round(t.z)] };
+    const b: AtomInstance = { id: uid('at'), z: zb, pos: [round(t.x + half), round(rb + 0.02), round(t.z)] };
+    this.store.mutate(`Añadir ${element(za).symbol} y ${element(zb).symbol}`, (p) => p.atoms.push(a, b));
+    this.setTool('bond');
+    this.requestFrame();
+    toast('Elige simple, doble o triple y toca los dos átomos para enlazarlos', 'info');
   }
 
   private setAnalysis(open: boolean) {
@@ -803,6 +861,7 @@ export class LabView {
         this.bondPick = [];
       } else if (!this.bondPick.length) {
         this.bondPick = [down.atom];
+        this.hideBondInfo(); // que el análisis anterior no tape el siguiente átomo
       } else {
         const first = this.bondPick[0];
         this.bondPick = [];
@@ -1225,6 +1284,7 @@ export class LabView {
       if (uniq.length >= 2 && chis.length >= 2)
         body.append(h('p', { class: 'small' }, `Diferencia máxima de electronegatividad: Δχ = ${(Math.max(...chis) - Math.min(...chis)).toFixed(2)}. `, h('span', { class: 'muted' }, 'Es solo una orientación: no determina por sí sola el tipo de enlace ni si existe un compuesto.')));
     }
+    if (atoms.length === 2) body.append(this.pairBlock(atoms[0], atoms[1]));
     body.append(this.combinationBlock(atoms));
     if (exp.measurements.length) {
       const list = h('div', { class: 'measures' });
@@ -1236,6 +1296,25 @@ export class LabView {
       body.append(h('h4', {}, 'Mediciones (entre posiciones colocadas por el usuario)'), list);
     }
     box.append(body);
+  }
+
+  /** Dos átomos seleccionados: análisis del par (si ya están enlazados, de ese enlace). */
+  private pairBlock(a: { id: string; z: number }, b: { id: string; z: number }): HTMLElement {
+    const bond = this.store.project.bonds.find((x) => (x.a === a.id && x.b === b.id) || (x.a === b.id && x.b === a.id));
+    const r = analyzeBond(a.z, b.z, bond?.order ?? null);
+    const A = element(a.z);
+    const B = element(b.z);
+    const title = bond ? `Enlace ${A.symbol}${JOIN[bond.order]}${B.symbol}` : '¿Qué pasaría si se unen?';
+    const box = h('div', { class: 'combo' }, h('h4', {}, title));
+    if (!r.ok) box.append(h('p', { class: 'small' }, r.reason));
+    else
+      box.append(
+        h('p', { class: 'small' }, h('b', {}, r.typeLabel), r.dChi !== null && !r.same ? ` · Δχ ${r.dChi.toFixed(2)}` : '', ` · ${r.func.name}`, r.formulas[0] ? ` · ${subscript(r.formulas[0].formula)}` : ''),
+        r.semiconductor.kind !== 'no' ? h('p', { class: 'small' }, r.semiconductor.label, r.semiconductor.family ? ` (${r.semiconductor.family})` : '') : '',
+        bond ? '' : h('p', { class: 'small muted' }, 'Predicción: los átomos no están enlazados. Usa «Enlazar» para unirlos.'),
+      );
+    box.append(h('div', { class: 'row gap mt' }, h('button', { class: 'btn small primary', onclick: () => this.showBondInfo(a.z, b.z, bond?.order ?? null, title) }, icon('bond', 14), 'Ver análisis completo')));
+    return box;
   }
 
   private combinationBlock(atoms: { id: string; z: number }[]): HTMLElement {

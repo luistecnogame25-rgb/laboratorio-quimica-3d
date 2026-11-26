@@ -14,7 +14,7 @@ Explora los **118 elementos** con datos verificables, observa su **estructura at
 | Fase | Estado | Qué incluye |
 |---|---|---|
 | 1. Laboratorio atómico y tabla periódica | ✅ | 118 elementos (PubChem), fichas con procedencia, búsqueda y filtros; visor 3D: Bohr, configuración, orbitales s/p/d/f y núcleo; laboratorio 3D; experimentos guardados |
-| 2. Constructor de enlaces | ✅ | Herramienta **Enlazar** (toca dos átomos; simple, doble o triple) validada por reglas de valencia, con reconocimiento automático de moléculas documentadas y su geometría de PubChem; análisis de combinaciones con 6 veredictos; formación animada de estructuras documentadas con sus enlaces y órdenes de enlace; separar; enlaces iónicos, covalentes (simple, doble, triple, polar, coordinado), metálicos y deslocalizados con ejemplos |
+| 2. Constructor de enlaces | ✅ | Herramienta **Enlazar** (toca dos átomos; simple, doble o triple) validada por reglas de valencia, con reconocimiento automático de moléculas documentadas y su geometría de PubChem; análisis de combinaciones con 6 veredictos; formación animada de estructuras documentadas con sus enlaces y órdenes de enlace; separar; enlaces iónicos, covalentes (simple, doble, triple, polar, coordinado), metálicos y deslocalizados con ejemplos; **Analizador de enlaces** de dos elementos (tipo de enlace, Δχ y % iónico, semiconductor intrínseco o extrínseco N/P, función química, fórmula y nombre, tipo de sólido, aleaciones, comportamiento eléctrico, octeto y Lewis, fuerzas intermoleculares), también al enlazar en el laboratorio, en «Sustancias» y en la biblioteca |
 | 3. Biblioteca molecular | ✅ | 20 compuestos de PubChem (18 con conformero 3D) y 5 sólidos de la COD (NaCl, MgO, Cu, Fe α, calcita); bolas y varillas, espacio lleno, estructural; longitudes, ángulos, VSEPR, polaridad, coordinación cristalina |
 | 4. Química computacional | 📄 Documentada | **No hay cálculos cuánticos en la app** (Psi4 y PySCF no funcionan en Android). Flujo de trabajo y requisitos en [docs/FASE4.md](docs/FASE4.md) |
 | 5. Plataforma educativa | ✅ | Academia de 18 módulos con explicación, enlaces a modelos 3D y reto con solución |
@@ -65,7 +65,7 @@ Abre http://localhost:5173. Otros comandos:
 
 | Comando | Para qué |
 |---|---|
-| `npm test` | 106 pruebas (Vitest) |
+| `npm test` | 124 pruebas (Vitest) |
 | `npm run build` | Comprobación de tipos y compilación de producción |
 | `npm run data:fetch` | Volver a descargar PubChem y la COD (requiere internet) |
 | `npm run data:structures` | Regenerar la biblioteca a partir de `data/fuentes` |
@@ -75,7 +75,7 @@ Para verla en Android Studio o generar el APK, consulta [docs/ANDROID.md](docs/A
 
 ## Pruebas
 
-`npm test` → **106 pruebas, todas correctas**. 20 de ellas cubren el constructor de enlaces (valencias, rechazos, reconocimiento de agua, CO₂, O₂ y etanol en cualquier orden, guardado). Entre ellas, 34 de la calculadora:
+`npm test` → **124 pruebas, todas correctas**. 18 cubren el analizador de enlaces (NaCl, GaAs, Si+P tipo N, Si+B tipo P, ZnO, Na metálico, diamante, nomenclatura, funciones químicas…) y 20 el constructor de enlaces (valencias, rechazos, reconocimiento de agua, CO₂, O₂ y etanol en cualquier orden, guardado). Entre ellas, 34 de la calculadora:
 - Masas molares de los 20 compuestos contrastadas con el valor independiente de PubChem (±0,01 g/mol).
 - Ajustes de referencia, incluidos la redox del KMnO₄ (2, 16, 2, 2, 5, 8) y la iónica MnO₄⁻/Fe²⁺ (1, 5, 8, 1, 5, 4).
 - Estados de oxidación de referencia; H₂O₂ detectado como excepción y Fe₃O₄ como promedio +8/3.
