@@ -19,7 +19,7 @@ import { PeriodicTable, previewCard } from './PeriodicTable';
 import { StructureViewer } from './StructureViewer';
 import { CalculatorPage, type CalcTool, type CalcLinks } from './CalculatorPage';
 import type { StructureRecord } from '../chem/structures';
-import { displayFormula, KIND_LABEL, searchStructures, type StructureKind } from '../chem/structures';
+import { displayFormula, KIND_LABEL, searchStructures, structure, type StructureKind } from '../chem/structures';
 import { subscript } from '../chem/formula';
 import { analyzeBond, findElement } from '../chem/bondAnalysis';
 import { bondAnalysisCard } from './BondAnalysisView';
@@ -380,15 +380,6 @@ function Legend() {
   );
 }
 
-function Pending({ phase, children }: { phase: number; children: ReactNode }) {
-  return (
-    <div className="pending">
-      <span className="badge">Fase {phase}</span>
-      <div>{children}</div>
-    </div>
-  );
-}
-
 const KIND_FILTERS: [StructureKind | 'all', string][] = [
   ['all', 'Todas'],
   ['molecular', 'Moléculas'],
@@ -521,14 +512,29 @@ function BondAnalyzer() {
     if (!pair) return null;
     const [a, b] = pair;
     const r = analyzeBond(a, b);
-    const toLab = document.createElement('button');
-    toLab.className = 'btn small primary';
-    toLab.textContent = 'Llevar al laboratorio para enlazarlos';
-    toLab.onclick = () => {
-      go('#/laboratorio');
-      setTimeout(() => getLab().addPairForBond(a, b), 80);
-    };
-    return bondAnalysisCard(r, { actions: r.ok ? [toLab] : [] });
+    const actions: HTMLElement[] = [];
+    if (r.ok) {
+      // ¿Hay en la biblioteca una molécula con geometría 3D o una red cristalina con esta composición?
+      const recs = r.formulas.map((f) => (f.recordId ? structure(f.recordId) : undefined)).filter((x): x is StructureRecord => !!x);
+      const mol = recs.find((x) => x.geometry === 'pubchem3d') ?? null;
+      const crystal = recs.find((x) => x.geometry === 'cod');
+      const toLab = document.createElement('button');
+      toLab.className = 'btn small primary';
+      toLab.textContent = mol ? `Ver ${mol.name} en el laboratorio 3D` : 'Ver en el laboratorio 3D';
+      toLab.onclick = () => {
+        go('#/laboratorio');
+        setTimeout(() => getLab().openAnalysisInLab(a, b, mol), 120);
+      };
+      actions.push(toLab);
+      if (crystal) {
+        const toCrystal = document.createElement('a');
+        toCrystal.className = 'btn small';
+        toCrystal.href = `#/molecula/${crystal.id}`;
+        toCrystal.textContent = `Ver la red cristalina de ${crystal.name} en 3D`;
+        actions.push(toCrystal);
+      }
+    }
+    return bondAnalysisCard(r, { actions });
   }, [pair]);
   return (
     <section className="bond-sec analyzer">
@@ -642,7 +648,14 @@ function BondsPage() {
             </tbody>
           </table>
         </div>
-        <Pending phase={2}>La representación 3D de interacciones entre varias moléculas requiere geometrías de agregados (dímeros, cristales moleculares) que aún no se han importado.</Pending>
+        <div className="note mt">
+          <Ico name="info" size={15} />
+          <span>
+            <b>Próximamente en 3D.</b> Para dibujar estas fuerzas hacen falta las posiciones reales de varias moléculas juntas (por ejemplo, dos moléculas de agua
+            unidas por un puente de hidrógeno). La biblioteca solo tiene moléculas sueltas y la app no inventa posiciones. Mientras tanto, en el{' '}
+            <b>Analizador de enlaces</b> de arriba pulsa <b>«Ver en el laboratorio 3D»</b> para ver la molécula analizada y su análisis.
+          </span>
+        </div>
       </section>
       <section className="bond-sec">
         <div className="row gap">

@@ -588,12 +588,43 @@ export class LabView {
     this.bondInfo.scrollTop = 0;
     this.bondInfo.classList.remove('hidden');
     this.exclusive('bond');
+    this.shiftForPanel();
+  }
+
+  /** En el teléfono, sube la vista 3D para que lo analizado se vea por encima del panel inferior. */
+  private shiftForPanel() {
+    const open = !this.bondInfo.classList.contains('hidden');
+    const stageH = this.sm.renderer.domElement.clientHeight || 1;
+    const top = this.bondInfo.offsetTop; // borde superior del panel dentro del escenario
+    const shift = open && compact() && top > 0 ? Math.min(0.35, Math.max(0, (stageH - top) / (2 * stageH))) : 0;
+    if (shift === this.sm.verticalShift) return;
+    this.sm.verticalShift = shift;
+    this.sm.resize();
   }
 
   private hideBondInfo() {
     if (this.bondInfo.classList.contains('hidden')) return;
     this.bondInfo.classList.add('hidden');
     clear(this.bondInfo);
+    this.shiftForPanel();
+  }
+
+  /**
+   * Lleva un análisis al laboratorio 3D. Si la pareja forma una molécula documentada con geometría
+   * de PubChem, se inserta esa molécula real; si no, se colocan los dos átomos listos para enlazar.
+   * En ambos casos se abre el «Análisis del enlace».
+   */
+  openAnalysisInLab(za: number, zb: number, rec: StructureRecord | null) {
+    const A = element(za);
+    const B = element(zb);
+    if (rec && rec.geometry === 'pubchem3d') {
+      this.insertStructure(rec);
+      const bond = rec.bonds.find(([x, y]) => (rec.atoms[x].z === za && rec.atoms[y].z === zb) || (rec.atoms[x].z === zb && rec.atoms[y].z === za));
+      this.showBondInfo(za, zb, bond?.[2] ?? null, `Análisis ${A.symbol}–${B.symbol} · ${rec.name} (PubChem)`);
+    } else {
+      this.addPairForBond(za, zb);
+      this.showBondInfo(za, zb, null, `Análisis ${A.symbol} + ${B.symbol} · tócalos para enlazarlos`);
+    }
   }
 
   /** Coloca dos átomos juntos y activa «Enlazar» (desde el analizador de la página de enlaces). */
@@ -1381,7 +1412,7 @@ export class LabView {
   private placeAtomActions() {
     const box = this.atomActions;
     const ids = [...this.selection];
-    const show = ids.length > 0 && !this.placing && this.tool === 'select' && !this.drag?.moved;
+    const show = ids.length > 0 && !this.placing && this.tool === 'select' && !this.drag?.moved && (this.bondInfo.classList.contains('hidden') || !compact());
     if (!show) {
       if (!box.classList.contains('hidden')) box.classList.add('hidden');
       this.atomActionsKey = '';

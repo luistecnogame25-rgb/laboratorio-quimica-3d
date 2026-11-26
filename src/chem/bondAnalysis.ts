@@ -33,6 +33,8 @@ export interface FormulaPrediction {
   formula: string; // "Fe2O3"
   name: string; // "óxido de hierro(III)"
   documented: string | null; // nombre del registro de la biblioteca si existe
+  /** Registro de la biblioteca (para verlo en 3D): molécula de PubChem o red cristalina de la COD. */
+  recordId: string | null;
 }
 
 export interface Semiconductor {
@@ -182,9 +184,10 @@ export function classifySemiconductor(A: ChemElement, B: ChemElement): Semicondu
 
 /* ------------------------------ fórmulas y nombres ------------------------------ */
 
-function documented(zs: number[]): string | null {
+function lookup(zs: number[]): { documented: string | null; recordId: string | null } {
   const { exact, empirical } = findByComposition(hillFormula(zs));
-  return exact[0]?.name ?? empirical[0]?.name ?? null;
+  const r = exact[0] ?? empirical[0];
+  return { documented: r?.name ?? null, recordId: r?.id ?? null };
 }
 
 function binaryName(cat: ChemElement, an: ChemElement, m: number, n: number, p: number): string {
@@ -205,12 +208,12 @@ export function predictFormulas(A: ChemElement, B: ChemElement): FormulaPredicti
   if (h && NONMETAL_HYDRIDE[h.z]) {
     const n = typicalValence(h);
     const zs = [h.z, ...Array(n).fill(1)];
-    return [{ formula: `${h.symbol}H${n > 1 ? n : ''}`, name: NONMETAL_HYDRIDE[h.z], documented: documented(zs) }];
+    return [{ formula: `${h.symbol}H${n > 1 ? n : ''}`, name: NONMETAL_HYDRIDE[h.z], ...lookup(zs) }];
   }
   if (h && h.z === 8) {
     return [
-      { formula: 'H2O', name: 'agua (óxido de hidrógeno)', documented: documented([1, 1, 8]) },
-      { formula: 'H2O2', name: 'peróxido de hidrógeno (agua oxigenada)', documented: documented([1, 1, 8, 8]) },
+      { formula: 'H2O', name: 'agua (óxido de hidrógeno)', ...lookup([1, 1, 8]) },
+      { formula: 'H2O2', name: 'peróxido de hidrógeno (agua oxigenada)', ...lookup([1, 1, 8, 8]) },
     ];
   }
   const [cat, an] = (A.electronegativity.value ?? 0) <= (B.electronegativity.value ?? 0) ? [A, B] : [B, A];
@@ -227,7 +230,7 @@ export function predictFormulas(A: ChemElement, B: ChemElement): FormulaPredicti
       const f = fmt(cat.symbol, m) + fmt(an.symbol, n);
       if (seen.has(f)) continue;
       seen.add(f);
-      out.push({ formula: f, name: binaryName(cat, an, m, n, p), documented: documented([...Array(m).fill(cat.z), ...Array(n).fill(an.z)]) });
+      out.push({ formula: f, name: binaryName(cat, an, m, n, p), ...lookup([...Array(m).fill(cat.z), ...Array(n).fill(an.z)]) });
     }
   return out.slice(0, 6);
 }
