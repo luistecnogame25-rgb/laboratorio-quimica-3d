@@ -19,9 +19,11 @@ describe('Constructor de enlaces manual', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('rechaza gases nobles, metal–metal y H con doble enlace', () => {
+  it('rechaza gases nobles, H con doble enlace; metal–metal solo como unión metálica simple', () => {
     expect(checkBond(2, 1, 'a', 'b', 1, []).ok).toBe(false);
-    expect(checkBond(29, 26, 'a', 'b', 1, []).ok).toBe(false);
+    const m = checkBond(29, 26, 'a', 'b', 1, []);
+    expect(m.ok && m.kind).toMatch(/Metálico/);
+    expect(checkBond(29, 26, 'a', 'b', 2, []).ok).toBe(false);
     expect(checkBond(1, 8, 'a', 'b', 2, []).ok).toBe(false);
     expect(checkBond(17, 8, 'a', 'b', 2, []).ok).toBe(false);
   });

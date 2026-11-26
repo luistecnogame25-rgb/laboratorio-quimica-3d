@@ -323,6 +323,10 @@ export function analyzeBond(za: number, zb: number, order: number | null = null)
   else if (type === 'covalente-polar') justification.push(`Δχ = ${d}${anyMetal ? ' (con un metal, pero menor de 1,7)' : ''}: los electrones se comparten de forma desigual, desplazados hacia el ${lower(negativeEnd!)} (δ⁻) → covalente polar.`);
   else if (type === 'covalente-no-polar') justification.push(`Δχ = ${d} < 0,4: los electrones se comparten casi por igual → covalente no polar.`);
   else justification.push('La fuente no da electronegatividad para alguno de los dos elementos: no se puede estimar el tipo de enlace.');
+  if (type === 'metalico') {
+    justification.push('Cada átomo cede sus electrones de valencia a la red y queda como catión; esos electrones se mueven libremente entre todos los cationes y los mantienen unidos. No hay pares compartidos ni transferencia a un átomo concreto.');
+    justification.push('En el laboratorio, la unión morada entre los dos átomos representa esta interacción metálica. En un metal real cada átomo está rodeado de muchos vecinos (red cristalina), no de uno solo.');
+  }
   if (type !== 'metalico' && !same && dChi !== null) justification.push('Los límites 0,4 y 1,7 son orientativos: el carácter del enlace cambia de forma gradual.');
 
   // 3) Octeto y estructura de Lewis
@@ -396,7 +400,7 @@ export function analyzeBond(za: number, zb: number, order: number | null = null)
   if (type === 'metalico')
     solid = same
       ? { name: 'Sólido metálico', detail: `Red de cationes de ${lower(A)} rodeados de electrones deslocalizados. Estado a temperatura ambiente según la fuente: ${A.state.text || 'sin dato'}.` }
-      : { name: 'Sólido metálico (aleación)', detail: 'Red metálica con átomos de los dos metales.' };
+      : { name: 'Sólido metálico (aleación)', detail: 'Red metálica con átomos de los dos metales. Propiedades típicas del enlace metálico: brillo metálico, maleable y dúctil (las capas de átomos se deslizan sin romper el enlace) y buen conductor del calor y la electricidad.' };
   else if (type === 'ionico') solid = { name: 'Sólido iónico (red cristalina)', detail: 'Cationes y aniones alternados en una red: duro, frágil y con punto de fusión alto. No forma moléculas aisladas.' };
   else if (same) {
     const z = A.z;

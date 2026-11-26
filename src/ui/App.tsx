@@ -616,7 +616,7 @@ function BondsPage() {
         <p>
           En el laboratorio, pulsa <b>Enlazar</b> (icono de dos átomos unidos), elige <b>simple, doble o triple</b> y toca dos átomos. El enlace solo se crea si
           respeta la valencia de cada elemento (H: 1, O: 2, N: 3, C: 4…; N y O admiten un enlace coordinado más; P y S pueden ampliar su capa al unirse a O, F o Cl).
-          Los gases nobles y los pares de metales no se enlazan. Tocar de nuevo un enlace con el mismo orden lo quita.
+          Los gases nobles no se enlazan. Dos metales se unen con una <b>unión metálica</b> (en morado, solo simple), que representa electrones deslocalizados y no cuenta para la valencia. Si un enlace no es posible, el análisis explica por qué. Tocar de nuevo un enlace con el mismo orden lo quita.
         </p>
         <p>
           Mientras la molécula no coincide con ninguna de la biblioteca, sus enlaces se ven en <b>naranja</b> y se marca como «No validada». Cuando completas una

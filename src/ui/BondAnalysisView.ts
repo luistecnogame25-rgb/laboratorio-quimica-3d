@@ -24,6 +24,8 @@ export interface BondCardOptions {
   actions?: HTMLElement[];
   /** Encabezado alternativo (p. ej. «Enlace que acabas de crear»). */
   kicker?: string;
+  /** Aviso destacado arriba de la tarjeta (p. ej. por qué no se creó el enlace). */
+  notice?: string;
 }
 
 export function bondAnalysisCard(r: BondAnalysisResult, opts: BondCardOptions = {}): HTMLElement {
@@ -79,6 +81,7 @@ export function bondAnalysisCard(r: BondAnalysisResult, opts: BondCardOptions = 
     'div',
     { class: 'bond-analysis' },
     head(label, h('span', { class: `ba-type ${cls}` }, x.typeLabel)),
+    opts.notice ? h('div', { class: 'note ba-notice' }, icon('warn', 15), h('span', {}, h('b', {}, 'No se creó el enlace: '), opts.notice)) : null,
     h('p', { class: 'small ba-func' }, h('b', {}, x.func.name), x.formulas[0] ? ` · ${subscript(x.formulas[0].formula)}` : ''),
     kv,
     section('Justificación', true, 'calculado', ...x.justification.map((l) => h('p', { class: 'small' }, l))),

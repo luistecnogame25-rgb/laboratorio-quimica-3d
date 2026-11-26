@@ -16,7 +16,7 @@ import type { ProjectStore } from '../core/store';
 import type { AtomInstance, Measurement } from '../core/types';
 import { buildLabAtom, disposeObject, visualRadius } from '../render/atomModels';
 import { analyzeCombination } from '../chem/combination';
-import { bondKind, checkBond, components, recognize, valenceReport } from '../chem/bonding';
+import { bondKind, checkBond, components, isMetallicPair, recognize, valenceReport } from '../chem/bonding';
 import { describeLooseAtom, describeStructure, type SubstanceDescription } from '../chem/description';
 import { structure as structureRecord, type StructureRecord } from '../chem/structures';
 import { SceneManager } from '../render/SceneManager';
@@ -305,7 +305,14 @@ export class LabView {
   }
 
   private bondsAsSimple() {
-    return this.store.project.bonds.map((b) => ({ a: b.a, b: b.b, order: b.order }));
+    // Las uniones metálicas (metal + metal) no cuentan para la valencia de los átomos.
+    return this.store.project.bonds.filter((b) => !this.isMetallicBond(b)).map((b) => ({ a: b.a, b: b.b, order: b.order }));
+  }
+
+  private isMetallicBond(b: { a: string; b: string }) {
+    const A = this.atom(b.a);
+    const B = this.atom(b.b);
+    return !!A && !!B && isMetallicPair(A.z, B.z);
   }
 
   /** Intenta crear (o cambiar/quitar) un enlace entre dos átomos con el orden elegido. */
@@ -328,7 +335,10 @@ export class LabView {
     }
     const chk = checkBond(A.z, B.z, idA, idB, this.bondOrder, this.bondsAsSimple());
     if (!chk.ok) {
+      // Además del aviso, el análisis explica qué pasa con esa pareja.
       toast(chk.reason, 'warn');
+      if (compact()) this.focusOn([idA, idB]);
+      this.showBondInfo(A.z, B.z, null, `No se enlazó ${element(A.z).symbol}${JOIN[this.bondOrder]}${element(B.z).symbol} · análisis del par`, chk.reason);
       return;
     }
     // Acerca el átomo que aún no tiene enlaces para que la barra se vea (posición visual, no calculada).
@@ -364,6 +374,7 @@ export class LabView {
       toast(`¡Has construido ${hit.record.name}! Coincide con PubChem (CID ${hit.record.cid}): se adopta su geometría real`, 'ok');
       this.applyStructure(hit.record, hit.map, 'Reconocer ' + hit.record.name);
     } else toast(`Enlace ${element(A.z).symbol}${JOIN[this.bondOrder]}${element(B.z).symbol}: ${chk.kind}`, 'ok');
+    if (compact() && !hit) this.focusOn([idA, idB]);
     this.showBondInfo(A.z, B.z, this.bondOrder, hit ? `Enlace creado · ${hit.record.name}` : 'Enlace que acabas de crear');
   }
 
@@ -501,7 +512,10 @@ export class LabView {
     const atoms = ids.map((id) => this.atom(id)!).filter(Boolean);
     const bonds = this.store.project.bonds.filter((b) => b.manual && ids.includes(b.a));
     const formula = hillFormula(atoms.map((a) => a.z));
-    const rep = valenceReport(atoms, bonds);
+    // Las uniones metálicas no cuentan para las valencias (un metal unido solo a metales no «le faltan» enlaces).
+    const covalent = bonds.filter((b) => !this.isMetallicBond(b));
+    const metalOnly = new Set(atoms.filter((a) => !covalent.some((b) => b.a === a.id || b.b === a.id)).map((a) => a.id));
+    const rep = valenceReport(atoms.filter((a) => !metalOnly.has(a.id)), covalent);
     const groups = new Map<string, { label: string; kind: string; count: number; za: number; zb: number; order: number }>();
     for (const b of bonds) {
       const A = element(this.atom(b.a)!.z);
@@ -578,12 +592,24 @@ export class LabView {
     if (!this.barMenu.classList.contains('hidden')) this.toggleBarMenu(false);
   }
 
+  /** Centra la cámara en unos átomos sin cambiar el ángulo ni la distancia (para verlos sobre el panel). */
+  private focusOn(ids: string[]) {
+    const pts = ids.map((id) => this.atom(id)).filter((a): a is AtomInstance => !!a);
+    if (!pts.length) return;
+    const mid = pts.reduce((s, a) => s.add(new THREE.Vector3(...a.pos)), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+    const d = mid.sub(this.sm.controls.target);
+    this.sm.controls.target.add(d);
+    this.sm.camera.position.add(d);
+    this.sm.controls.update();
+    this.sm.needsRender = true;
+  }
+
   /** Muestra el «Análisis del enlace» entre dos elementos (orden opcional) en el panel del laboratorio. */
-  showBondInfo(za: number, zb: number, order: number | null, kicker = 'Análisis del enlace') {
+  showBondInfo(za: number, zb: number, order: number | null, kicker = 'Análisis del enlace', notice?: string) {
     clear(this.bondInfo);
     this.bondInfo.append(
       h('div', { class: 'picker-head' }, h('b', {}, kicker), iconBtn('close', 'Cerrar', () => this.hideBondInfo())),
-      bondAnalysisCard(analyzeBond(za, zb, order)),
+      bondAnalysisCard(analyzeBond(za, zb, order), { notice }),
     );
     this.bondInfo.scrollTop = 0;
     this.bondInfo.classList.remove('hidden');
@@ -738,7 +764,7 @@ export class LabView {
     const e = element(pl.z);
     this.placeBar.append(
       h('span', { class: 'dot', style: `background:${FAMILIES[e.family].color}` }),
-      h('span', {}, h('b', {}, e.name), h('small', {}, ' · clic para colocar · Mayús: varios · Esc: cancelar')),
+      h('span', {}, h('b', {}, e.name), h('small', { class: 'place-hint-desk' }, ' · clic para colocar · Mayús: varios · Esc: cancelar'), h('small', { class: 'place-hint-touch' }, ' · toca donde quieras ponerlo')),
       h('button', { class: 'btn small primary', onclick: () => this.confirmPlacement(false) }, icon('check', 15), 'Colocar'),
       iconBtn('close', 'Cancelar (Esc)', () => this.cancelPlacement()),
     );
@@ -1060,7 +1086,7 @@ export class LabView {
       perp.normalize().multiplyScalar(0.12);
       const shifts = b.order === 2 ? [-0.5, 0.5] : b.order === 3 ? [-1, 0, 1] : [0];
       for (const k of shifts) {
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(b.order > 1 ? 0.05 : 0.08, b.order > 1 ? 0.05 : 0.08, len, 12), b.manual ? MANUAL_BOND_MAT : BOND_MAT);
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(b.order > 1 ? 0.05 : 0.08, b.order > 1 ? 0.05 : 0.08, len, 12), b.manual ? (this.isMetallicBond(b) ? METALLIC_BOND_MAT : MANUAL_BOND_MAT) : BOND_MAT);
         m.position.copy(a).addScaledVector(axis, 0.5).addScaledVector(perp, k);
         m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
         m.castShadow = true;
@@ -1529,7 +1555,9 @@ export class LabView {
 
 const BOND_MAT = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.35, metalness: 0.1 });
 /** Enlaces propuestos por el usuario (aún no reconocidos como estructura documentada). */
-const MANUAL_BOND_MAT = new THREE.MeshStandardMaterial({ color: 0xffb340, roughness: 0.4, metalness: 0.05, emissive: 0x3a2200 });
+/** Unión metálica entre dos metales: interacción con electrones deslocalizados, no un par compartido. */
+const METALLIC_BOND_MAT = new THREE.MeshStandardMaterial({ color: 0xa99bff, roughness: 0.3, metalness: 0.6, emissive: 0x1d1640, transparent: true, opacity: 0.85 });
+const MANUAL_BOND_MAT =new THREE.MeshStandardMaterial({ color: 0xffb340, roughness: 0.4, metalness: 0.05, emissive: 0x3a2200 });
 
 function round(v: number) {
   return Math.round(v * 1000) / 1000;

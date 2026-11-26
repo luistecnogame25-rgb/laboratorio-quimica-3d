@@ -11,13 +11,19 @@
  *  - Valencia típica de los no metales de los bloques s y p: 8 − e⁻ de valencia (H: 1, B: 3).
  *  - N y O admiten un enlace más como enlace coordinado (NH₄⁺, H₃O⁺, CO); el B acepta uno (BF₄⁻).
  *  - No metales del período ≥ 3 (P, S, Cl…) pueden superar el octeto hasta su nº de e⁻ de valencia.
- *  - Metales: tantos enlaces como su estado de oxidación positivo máximo de la fuente (máx. 6),
- *    solo simples y nunca con otro metal (el enlace metálico es una red, no barras entre pares).
+ *  - Metales: tantos enlaces como su estado de oxidación positivo máximo de la fuente (máx. 6), solo simples.
+ *  - Metal + metal: «unión metálica» (solo simple). Se dibuja distinta y NO cuenta para la valencia:
+ *    representa la interacción metálica entre dos átomos, no un par de electrones compartido.
  *  - Gases nobles: sin enlaces.
  */
 import { element, type ChemElement } from './elements';
 import { hillFormula } from './formula';
 import { STRUCTURES, type StructureRecord } from './structures';
+
+/** ¿Unión metálica (los dos átomos son metales)? No cuenta para la valencia. */
+export function isMetallicPair(za: number, zb: number): boolean {
+  return isMetal(element(za)) && isMetal(element(zb));
+}
 
 export interface SimpleBond {
   a: string;
@@ -90,8 +96,10 @@ export function checkBond(za: number, zb: number, a: string, b: string, order: n
   if (order < 1 || order > 3) return { ok: false, reason: 'El orden de enlace debe ser simple, doble o triple.' };
   for (const E of [A, B])
     if (E.family === 'noble-gas') return { ok: false, reason: `${E.name} es un gas noble: su capa de valencia está completa y el laboratorio no forma enlaces con él.` };
-  if (isMetal(A) && isMetal(B))
-    return { ok: false, reason: 'Entre dos metales no se forma un enlace localizado: el enlace metálico es una red de átomos con electrones deslocalizados. Consulta el cobre o el hierro en la biblioteca.' };
+  if (isMetal(A) && isMetal(B)) {
+    if (order > 1) return { ok: false, reason: 'La unión metálica no tiene orden doble ni triple: sus electrones están deslocalizados por toda la red. Elige «Simple».' };
+    return { ok: true, kind: 'Metálico (unión metálica: electrones deslocalizados, no un par compartido)' };
+  }
   if (order > 1) {
     for (const E of [A, B]) {
       if (E.z === 1) return { ok: false, reason: 'El hidrógeno solo forma enlaces simples.' };

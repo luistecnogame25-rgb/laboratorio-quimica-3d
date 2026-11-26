@@ -512,3 +512,12 @@ ul.inter { margin: 4px 0; padding-left: 18px; color: var(--text-2); line-height:
   .lab-bondinfo { max-height: 48%; }
   .stage.bonding .lab-bondinfo { bottom: 196px; max-height: 44%; }
 }
+.ba-notice { margin-top: 0; background: rgba(255, 159, 10, 0.12); color: #ffcf8a; }
+/* Barra «Colocar»: en el teléfono, compacta y abajo (no tapa la escena donde se toca para colocar). */
+.place-hint-touch { display: none; }
+@media (max-width: 859px) {
+  .place-hint-desk { display: none; }
+  .place-hint-touch { display: inline; }
+  .place-bar:not(.bond-bar) { top: auto; bottom: 70px; left: 10px; right: 10px; transform: none; max-width: none; }
+  .place-bar:not(.bond-bar) > span:nth-child(2) { flex: 1; min-width: 0; }
+}
